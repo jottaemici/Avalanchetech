@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Abelha Simulator 3D PvP</title>
+    <!-- Fonte amigável e cartoon -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: 'Fredoka One', cursive;
+            touch-action: none; /* Previne scroll no telemóvel */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* --- UI IN-GAME (ESTILO MOBILE CARTOON) --- */
+        #game-ui {
+            display: none; /* Escondido no menu principal */
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Topo Esquerdo: Barras */
+        .top-left-bars {
+            position: absolute;
+            top: 15px; left: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .bar-wrapper {
+            display: flex;
+            align-items: center;
+            background: rgba(139, 69, 19, 0.4);
+            border-radius: 20px;
+            padding: 2px 10px 2px 2px;
+            border: 2px solid #a05a2c;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .bar-icon {
+            width: 45px; height: 45px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px;
+            border: 3px solid #ffd700;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.4);
+            position: absolute;
+            left: -10px;
+            z-index: 2;
+        }
+
+        .nectar-icon { border-color: #ff9800; background: #ffc107; }
+        .health-icon { border-color: #d32f2f; background: #f44336; }
+
+        .bar-bg {
+            width: 180px; height: 22px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            margin-left: 35px; /* Espaço para o ícone */
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 50%;
+            border-radius: 10px;
+            transition: width 0.2s;
+        }
+        
+        #nectar-bar-fill { background: linear-gradient(180deg, #ffc107, #ff9800); }
+        #health-bar-fill { background: linear-gradient(180deg, #f44336, #d32f2f); }
+
+        /* Topo Direito: Pontuação */
+        .top-right-score {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: #ffb300;
+            border: 3px solid #fff;
+            border-radius: 25px;
+            padding: 5px 15px 5px 40px;
+            font-size: 24px;
+            color: #fff;
+            text-shadow: 2px 2px 0 #a05a2c;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            display: flex; align-items: center;
+        }
+
+        .score-icon {
+            position: absolute;
+            left: -15px;
+            width: 40px; height: 40px;
+            background: #ffca28;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Ícones Laterais Esquerdos */
+        .side-icons {
+            position: absolute;
+            top: 120px; left: 15px;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .side-btn {
+            width: 55px; height: 55px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            font-size: 28px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .side-btn.hive { border-color: #ff9800; color: #ff9800; }
+        .side-btn.warning { border-color: #f44336; background: #ffebee; }
+
+        /* Controlos Virtuais - Joystick */
+        #joystick-zone {
+            position: absolute;
+            bottom: 30px; left: 30px;
+            width: 150px; height: 150px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 4px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        #joystick-knob {
+            width: 60px; height: 60px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            position: absolute;
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Nunito', sans-serif;
+            font-size: 24px;
+            color: #ccc;
+        }
+
+        /* Controlos Virtuais - Botões de Ação */
+        .action-buttons {
+            position: absolute;
+            bottom: 30px; right: 30px;
+            display: flex; gap: 20px;
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            width: 70px; height: 70px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 4px solid #ffd700;
+            border-radius: 50%;
+            font-size: 32px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 6px 0 rgba(200, 150, 0, 0.8), 0 10px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .action-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 rgba(200, 150, 0, 0.8), 0 4px 5px rgba(0,0,0,0.3);
+        }
+
+        .action-btn.attack { border-color: #ff5722; box-shadow: 0 6px 0 rgba(200, 50, 0, 0.8), 0 10px 10px rgba(0,0,0,0.3); }
+        .action-btn.attack:active { box-shadow: 0 0px 0 rgba(200, 50, 0, 0.8), 0 4px 5px rgba(0,0,0,0.3); transform: translateY(6px); }
+
+        /* Mensagens In-Game */
+        #game-msg {
+            position: absolute;
+            top: 100px; width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 36px;
+            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            pointer-events: none;
+            display: none;
+            z-index: 20;
+        }
+
+        /* --- MENUS --- */
+        #menu-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 30;
+            backdrop-filter: blur(4px);
+        }
+
+        .menu-card {
+            background: #fff9e6;
+            padding: 40px;
+            border-radius: 30px;
+            text-align: center;
+            border: 6px solid #ffb300;
+            box-shadow: 0 10px 0 #d84315, 0 20px 30px rgba(0,0,0,0.5);
+            max-width: 400px; width: 90%;
+            font-family: 'Nunito', sans-serif;
+            position: relative;
+        }
+
+        .menu-card h1 {
+            font-family: 'Fredoka One', cursive;
+            color: #ff9800;
+            font-size: 40px;
+            margin-top: 0;
+            text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(0,0,0,0.1);
+        }
+
+        .menu-btn {
+            background: #4CAF50;
+            color: white;
+            border: 4px solid #2E7D32;
+            padding: 15px 20px;
+            font-size: 22px;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 20px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            box-shadow: 0 6px 0 #1b5e20;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .menu-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 #1b5e20;
+        }
+
+        .btn-pvp { background: #ff5722; border-color: #bf360c; box-shadow: 0 6px 0 #870000; }
+        .btn-pvp:active { box-shadow: 0 0 0 #870000; }
+        
+        .btn-blue { background: #03a9f4; border-color: #01579b; box-shadow: 0 6px 0 #003c8f; }
+        .btn-blue:active { box-shadow: 0 0 0 #003c8f; }
+
+        .player-tag {
+            position: absolute;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .bar-bg { width: 120px; }
+            .top-right-score { font-size: 20px; }
+            #joystick-zone { width: 120px; height: 120px; bottom: 20px; left: 20px; }
+            #joystick-knob { width: 50px; height: 50px; }
+            .action-btn { width: 60px; height: 60px; font-size: 26px; }
+        }
+    </style>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="game-container"></div>
+    <div id="opponent-tag" class="player-tag">Rival</div>
+
+    <!-- UI In-Game (Mobile Style) -->
+    <div id="game-ui">
+        
+        <div class="top-left-bars">
+            <!-- Barra de Néctar -->
+            <div class="bar-wrapper">
+                <div class="bar-icon nectar-icon">🍯</div>
+                <div class="bar-bg">
+                    <div id="nectar-bar-fill" class="bar-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            <!-- Barra de Vida -->
+            <div class="bar-wrapper">
+                <div class="bar-icon health-icon">❤️</div>
+                <div class="bar-bg">
+                    <div id="health-bar-fill" class="bar-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="top-right-score">
+            <div class="score-icon">🪙</div>
+            <span id="score-display">0</span>
+        </div>
+
+        <div class="side-icons">
+            <div class="side-btn hive">⛺</div>
+            <div class="side-btn warning">☠️</div>
+        </div>
+
+        <!-- Joystick Virtual -->
+        <div id="joystick-zone">
+            <div id="joystick-knob">✥</div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="action-buttons">
+            <div class="action-btn attack" onclick="window.attackAction()">🗡️</div>
+            <div class="action-btn" onclick="window.dashAction()">💨</div>
+        </div>
+
+        <div id="game-msg">PRIMEIRO A 100 VENCE!</div>
+    </div>
+
+    <!-- Menus HTML -->
+    <div id="menu-layer">
+        <!-- Menu Principal -->
+        <div class="menu-card" id="start-menu">
+            <h1>Bee World 3D</h1>
+            <h3 style="color:#795548;">Total de Moedas: <span id="bank-score">0</span></h3>
+            <p>Voo livre na floresta!</p>
+            <p><strong>Apanha 100 Néctares para vencer.</strong></p>
+            
+            <button class="menu-btn" onclick="window.startTraining()">🌸 EXPLORAR SOZINHO</button>
+            <button class="menu-btn btn-pvp" onclick="window.findRandomMatch()">⚔️ PARTIDA PVP ONLINE</button>
+            <button class="menu-btn btn-blue" onclick="window.showJoinMenu()">🤝 JOGAR COM AMIGO</button>
+        </div>
+
+        <div class="menu-card" id="join-menu" style="display: none;">
+            <h1>SALA PRIVADA</h1>
+            <p>O teu ID de Host é: <strong id="host-id-display" style="color:#d32f2f; font-size:24px;">----</strong></p>
+            <hr style="border:1px solid #ccc; margin:20px 0;">
+            <p>Ou digita o ID do amigo para entrar:</p>
+            <input type="text" id="room-id-input" maxlength="4" style="font-size: 24px; text-align: center; padding: 10px; width: 60%; border-radius: 10px; border: 2px solid #ccc; text-transform: uppercase;">
+            <button class="menu-btn btn-blue" onclick="window.joinPrivateRoom()">ENTRAR</button>
+            <button class="menu-btn" style="background:#757575; border-color:#424242; box-shadow: 0 6px 0 #212121;" onclick="window.cancelMenus()">VOLTAR</button>
+        </div>
+        
+        <div class="menu-card" id="loading-menu" style="display: none;">
+            <h1>A PROCURAR...</h1>
+            <p>A conectar à colmeia online.</p>
+            <div style="font-size: 40px; margin: 20px 0;">🐝💨</div>
+            <button class="menu-btn" style="background:#757575; border-color:#424242; box-shadow: 0 6px 0 #212121;" onclick="window.cancelMenus()">CANCELAR</button>
+        </div>
+
+        <div class="menu-card" id="game-over-menu" style="display: none;">
+            <h1>FIM!</h1>
+            <p id="game-over-desc" style="font-size: 18px; font-weight: bold;"></p>
+            <h2 style="color: #ff9800;">Néctar: <span id="final-score">0</span></h2>
+            <button class="menu-btn" onclick="window.backToMenu()">VOLTAR AO MENU</button>
+        </div>
+    </div>
+
+    <!-- Script principal como Módulo para importar o Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuração Firebase ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bee-world-3d';
+        let app, auth, db, currentUser;
+
+        if (firebaseConfig) {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        }
+
+        // --- Variáveis Globais de Jogo ---
+        let scene, camera, renderer;
+        let beeGroup, opponentBeeGroup;
+        let wingsLocal = [], wingsOp = [];
+        let environment = [];
+        let flowers = []; // Objetos colecionáveis
+        
+        let score = 0, health = 100;
+        let opScore = 0, opHealth = 100;
+        
+        let gameActive = false, isMultiplayer = false;
+        let totalBankScore = parseInt(localStorage.getItem('bee_world_score')) || 0;
+
+        // Multiplayer
+        let matchId = null;
+        let isPlayer1 = false;
+        let unsubscribeMatch = null;
+        let targetOpponentPos = new THREE.Vector3(0,0,0);
+        let targetOpponentRot = 0;
+        let lastSyncTime = 0;
+        let hasFinished = false;
+
+        // Controlos (Joystick & Teclado)
+        let keys = { w:false, a:false, s:false, d:false };
+        let joyVector = new THREE.Vector2(0, 0); // X e Y normalizados (-1 a 1)
+        let isDashing = false;
+        
+        // --- INICIALIZAÇÃO ---
+        async function init() {
+            // Iniciar Auth do Firebase
+            if (auth) {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    onAuthStateChanged(auth, user => { currentUser = user; });
+                } catch (error) {
+                    console.warn("Aviso: Falha no Firebase. Multiplayer indisponível.");
+                }
+            }
+
+            document.getElementById('bank-score').innerText = totalBankScore;
+
+            const container = document.getElementById('game-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Céu azul
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.015); // Nevoeiro suave
+
+            // Câmara na terceira pessoa
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Iluminação
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffae6, 0.8);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            // Criar Mundo e Jogador
+            createWorld();
+            beeGroup = createBeeModel(false);
+            scene.add(beeGroup);
+
+            // Eventos
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
+            document.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
+            setupJoystick();
+
+            animate();
+        }
+
+        // --- CRIAÇÃO DOS MODELOS ---
+        function createBeeModel(isOpponent) {
+            const group = new THREE.Group();
+
+            const primaryColor = isOpponent ? 0x00aaff : 0xffa500; // Laranja/Amarelo ou Azul
+            const bodyMat = new THREE.MeshLambertMaterial({ color: primaryColor });
+            const blackMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+            const wingMat = new THREE.MeshPhysicalMaterial({ 
+                color: 0xffffff, transparent: true, opacity: 0.6,
+                roughness: 0.2, side: THREE.DoubleSide
+            });
+
+            // Abdómen gordinho
+            const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), bodyMat);
+            abdomen.scale.set(1, 1, 1.4);
+            abdomen.position.z = 0.6; 
+            abdomen.castShadow = true;
+            group.add(abdomen);
+
+            // Listras (usando toros pretos em volta do abdómen)
+            for(let i=0; i<3; i++) {
+                const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.08, 8, 16), blackMat);
+                stripe.position.z = 0.2 + (i * 0.4);
+                group.add(stripe);
+            }
+
+            // Tórax
+            const thorax = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+            thorax.position.z = -0.4; thorax.castShadow = true; group.add(thorax);
+            
+            // Cabeça
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), blackMat);
+            head.position.set(0, -0.1, -0.9); head.castShadow = true; group.add(head);
+
+            // Olhos
+            const eyeGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const eyeMat = new THREE.MeshLambertMaterial({color: 0xffffff});
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.2, 0.1, -1.2);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.2, 0.1, -1.2);
+            // Pupilas
+            const pupGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const pupR = new THREE.Mesh(pupGeo, blackMat); pupR.position.set(0.2, 0.1, -1.33);
+            const pupL = new THREE.Mesh(pupGeo, blackMat); pupL.position.set(-0.2, 0.1, -1.33);
+            group.add(eyeR); group.add(eyeL); group.add(pupR); group.add(pupL);
+
+            // Asas (simples ovais)
+            const wingGeo = new THREE.CylinderGeometry(0.01, 0.01, 1.5, 16);
+            wingGeo.scale(1, 1, 0.4);
+            
+            const wingRGroup = new THREE.Group();
+            const wingR = new THREE.Mesh(wingGeo, wingMat); 
+            wingR.rotation.z = Math.PI / 2; wingR.position.x = 0.8;
+            wingRGroup.add(wingR); wingRGroup.position.set(0.2, 0.5, -0.4);
+            
+            const wingLGroup = new THREE.Group();
+            const wingL = new THREE.Mesh(wingGeo, wingMat); 
+            wingL.rotation.z = Math.PI / 2; wingL.position.x = -0.8;
+            wingLGroup.add(wingL); wingLGroup.position.set(-0.2, 0.5, -0.4);
+
+            group.add(wingRGroup); group.add(wingLGroup);
+
+            if (isOpponent) wingsOp = [wingRGroup, wingLGroup];
+            else wingsLocal = [wingRGroup, wingLGroup];
+
+            // Levantar a abelha do chão
+            group.position.y = 2;
+
+            return group;
+        }
+
+        // --- CRIAÇÃO DO MUNDO (ARENA 3D) ---
+        function createWorld() {
+            // Chão Verde (Plano grande)
+            const groundMat = new THREE.MeshLambertMaterial({ color: 0x7cb342 });
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            environment.push(ground);
+
+            // Colmeia Gigante no Centro
+            const hiveGroup = new THREE.Group();
+            const hiveMat = new THREE.MeshLambertMaterial({ color: 0xffa000 });
+            const hiveDetails = new THREE.MeshLambertMaterial({ color: 0x8d6e63, wireframe: true }); // Aspeto favo
+            
+            const baseHive = new THREE.Mesh(new THREE.DodecahedronGeometry(8, 1), hiveMat);
+            baseHive.position.y = 4; baseHive.castShadow = true; baseHive.receiveShadow = true;
+            const detailHive = new THREE.Mesh(new THREE.DodecahedronGeometry(8.1, 1), hiveDetails);
+            detailHive.position.y = 4;
+            
+            // Porta da Colmeia
+            const doorMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+            const door = new THREE.Mesh(new THREE.CircleGeometry(2, 16), doorMat);
+            door.position.set(0, 2, 7.8);
+            
+            hiveGroup.add(baseHive); hiveGroup.add(detailHive); hiveGroup.add(door);
+            scene.add(hiveGroup);
+            environment.push(hiveGroup);
+
+            // Árvores e Pedras espalhadas
+            for(let i=0; i<40; i++) {
+                const isTree = Math.random() > 0.4;
+                const dist = 15 + Math.random() * 80; // Afastar do centro
+                const angle = Math.random() * Math.PI * 2;
+                const px = Math.cos(angle) * dist;
+                const pz = Math.sin(angle) * dist;
+
+                if (isTree) {
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 4), new THREE.MeshLambertMaterial({color: 0x5d4037}));
+                    trunk.position.set(px, 2, pz); trunk.castShadow = true;
+                    const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(2.5), new THREE.MeshLambertMaterial({color: 0x33691e}));
+                    leaves.position.set(px, 5, pz); leaves.castShadow = true;
+                    scene.add(trunk); scene.add(leaves);
+                } else {
+                    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(Math.random()*1.5 + 0.5), new THREE.MeshLambertMaterial({color: 0x757575}));
+                    rock.position.set(px, 0.5, pz); rock.castShadow = true;
+                    scene.add(rock);
+                }
+            }
+
+            // Montanhas ao fundo (cilindros grandes)
+            for(let i=0; i<12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const mount = new THREE.Mesh(new THREE.ConeGeometry(20, 40, 4), new THREE.MeshLambertMaterial({color: 0x90a4ae}));
+                mount.position.set(Math.cos(angle) * 110, 10, Math.sin(angle) * 110);
+                scene.add(mount);
+            }
+        }
+
+        function spawnFlowers() {
+            // Limpar antigas
+            flowers.forEach(f => scene.remove(f));
+            flowers = [];
+            
+            // Criar novas baseadas numa seed ou aleatórias
+            const numFlowers = 30;
+            const flowerColors = [0xffeb3b, 0xe91e63, 0x00bcd4, 0xffffff];
+
+            for(let i=0; i<numFlowers; i++) {
+                // Posição aleatória mas longe do centro da colmeia
+                let px, pz;
+                do {
+                    px = (Math.random() - 0.5) * 160;
+                    pz = (Math.random() - 0.5) * 160;
+                } while(Math.sqrt(px*px + pz*pz) < 10); // Evitar dentro da colmeia
+
+                const fGroup = new THREE.Group();
+                const col = flowerColors[Math.floor(Math.random()*flowerColors.length)];
+                
+                // Caule
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1), new THREE.MeshLambertMaterial({color: 0x4caf50}));
+                stem.position.y = 0.5;
+                fGroup.add(stem);
+
+                // Cabeça
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshLambertMaterial({color: col}));
+                head.position.y = 1; head.scale.y = 0.3;
+                fGroup.add(head);
+
+                const center = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshLambertMaterial({color: 0xffa000}));
+                center.position.y = 1.1;
+                fGroup.add(center);
+
+                fGroup.position.set(px, 0, pz);
+                fGroup.userData = { active: true };
+                scene.add(fGroup);
+                flowers.push(fGroup);
+            }
+        }
+
+        // --- LÓGICA DO JOYSTICK ---
+        function setupJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            let isDragging = false;
+            let centerX, centerY, maxRadius = 45;
+
+            function startDrag(e) {
+                if(!gameActive) return;
+                isDragging = true;
+                const rect = zone.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+                moveDrag(e);
+            }
+
+            function moveDrag(e) {
+                if (!isDragging) return;
+                let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                let dx = clientX - centerX;
+                let dy = clientY - centerY;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+
+                if (distance > maxRadius) {
+                    dx = (dx / distance) * maxRadius;
+                    dy = (dy / distance) * maxRadius;
+                }
+
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                // Normalizar -1 a 1 (invertendo o Y para que Cima seja -1 como no 3D Z)
+                joyVector.x = dx / maxRadius;
+                joyVector.y = dy / maxRadius; 
+            }
+
+            function endDrag() {
+                isDragging = false;
+                knob.style.transform = `translate(0px, 0px)`;
+                joyVector.set(0,0);
+            }
+
+            zone.addEventListener('touchstart', startDrag);
+            zone.addEventListener('touchmove', moveDrag);
+            zone.addEventListener('touchend', endDrag);
+            zone.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', moveDrag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        // Botões de Ação
+        window.attackAction = function() {
+            if(!gameActive) return;
+            // Animação de picar
+            beeGroup.rotation.x = Math.PI/4;
+            setTimeout(()=> { if(gameActive) beeGroup.rotation.x = 0; }, 200);
+        };
+
+        window.dashAction = function() {
+            if(!gameActive || isDashing) return;
+            isDashing = true;
+            setTimeout(()=> { isDashing = false; }, 500);
+        };
+
+        // --- SISTEMA MULTIPLAYER ---
+        function generateId() {
+            return Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+
+        window.cancelMenus = function() {
+            if (unsubscribeMatch) { unsubscribeMatch(); unsubscribeMatch = null; }
+            matchId = null;
+            document.getElementById('loading-menu').style.display = 'none';
+            document.getElementById('join-menu').style.display = 'none';
+            document.getElementById('start-menu').style.display = 'block';
+        };
+
+        window.showJoinMenu = async function() {
+            if (!currentUser) { alert("A conectar. Tente novamente em segundos."); return; }
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('join-menu').style.display = 'block';
+            
+            // Preparar sala como Host caso o amigo queira juntar-se a nós
+            matchId = generateId();
+            document.getElementById('host-id-display').innerText = matchId;
+            isPlayer1 = true;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), {
+                status: 'waiting', type: 'private',
+                p1: { uid: currentUser.uid, x: 0, z: 0, r: 0, score: 0 }
+            });
+            listenToMatch();
+        };
+
+        window.joinPrivateRoom = async function() {
+            const input = document.getElementById('room-id-input').value.toUpperCase().trim();
+            if(input.length !== 4) return alert("ID inválido");
+            if(matchId && isPlayer1) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId)).catch(()=>{}); // Limpa a sala que criou automaticamente
+            
+            const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', input);
+            const docSnap = await getDoc(matchRef);
+            if(docSnap.exists() && docSnap.data().status === 'waiting') {
+                matchId = input; isPlayer1 = false;
+                await updateDoc(matchRef, {
+                    status: 'playing',
+                    p2: { uid: currentUser.uid, x: 0, z: 0, r: 0, score: 0 }
+                });
+                listenToMatch();
+                document.getElementById('join-menu').style.display = 'none';
+            } else {
+                alert("Sala não encontrada.");
+            }
+        };
+
+        window.findRandomMatch = async function() {
+            if (!currentUser) { alert("A conectar..."); return; }
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('loading-menu').style.display = 'block';
+
+            const matchesRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+            const snapshot = await getDocs(matchesRef);
+            let found = null;
+            snapshot.forEach(d => {
+                if(d.data().status === 'waiting' && d.data().type !== 'private' && d.data().p1.uid !== currentUser.uid) found = d;
+            });
+
+            if(found) {
+                matchId = found.id; isPlayer1 = false;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), {
+                    status: 'playing', p2: { uid: currentUser.uid, x: 0, z: 0, r: 0, score: 0 }
+                });
+                listenToMatch();
+            } else {
+                matchId = generateId(); isPlayer1 = true;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), {
+                    status: 'waiting', type: 'public',
+                    p1: { uid: currentUser.uid, x: 0, z: 0, r: 0, score: 0 }
+                });
+                listenToMatch();
+            }
+        };
+
+        function listenToMatch() {
+            if (!matchId) return;
+            unsubscribeMatch = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), (docSnap) => {
+                if (!docSnap.exists()) return;
+                const data = docSnap.data();
+
+                if (data.status === 'playing' && !gameActive && !hasFinished) startRun(true);
+
+                if (gameActive) {
+                    const op = isPlayer1 ? data.p2 : data.p1;
+                    if (op) {
+                        targetOpponentPos.set(op.x, 2, op.z);
+                        targetOpponentRot = op.r;
+                        opScore = op.score;
+                    }
+                    if (data.status === 'finished' && data.winner) {
+                        endGame(data.winner === currentUser.uid);
+                    }
+                }
+            });
+        }
+
+        async function syncData() {
+            if (!matchId || !gameActive || hasFinished) return;
+            const update = {};
+            const key = isPlayer1 ? 'p1' : 'p2';
+            update[`${key}.x`] = beeGroup.position.x;
+            update[`${key}.z`] = beeGroup.position.z;
+            update[`${key}.r`] = beeGroup.rotation.y;
+            update[`${key}.score`] = score;
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), update); } catch(e){}
+        }
+
+        async function declareWinner(uid) {
+            if(hasFinished) return;
+            hasFinished = true; gameActive = false;
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', matchId), {status: 'finished', winner: uid}); } catch(e){}
+            endGame(uid === currentUser.uid);
+        }
+
+        // --- CORE LOGIC ---
+        window.startTraining = function() { startRun(false); };
+
+        function startRun(multi) {
+            isMultiplayer = multi;
+            document.getElementById('menu-layer').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            
+            score = 0; health = 100; hasFinished = false;
+            beeGroup.position.set(0, 2, 15);
+            beeGroup.rotation.y = Math.PI; // Virada para o centro
+            
+            spawnFlowers();
+
+            if (isMultiplayer) {
+                if(!opponentBeeGroup) { opponentBeeGroup = createBeeModel(true); scene.add(opponentBeeGroup); }
+                opponentBeeGroup.visible = true;
+                opponentBeeGroup.position.set(0, 2, -15);
+                document.getElementById('opponent-tag').style.display = 'block';
+                document.getElementById('game-msg').style.display = 'block';
+                setTimeout(()=> document.getElementById('game-msg').style.display = 'none', 3000);
+            } else {
+                if(opponentBeeGroup) opponentBeeGroup.visible = false;
+                document.getElementById('opponent-tag').style.display = 'none';
+            }
+
+            updateUI();
+            gameActive = true;
+        }
+
+        function endGame(won) {
+            gameActive = false;
+            document.getElementById('game-ui').style.display = 'none';
+            document.getElementById('opponent-tag').style.display = 'none';
+            
+            totalBankScore += score;
+            localStorage.setItem('bee_world_score', totalBankScore);
+            document.getElementById('bank-score').innerText = totalBankScore;
+
+            document.getElementById('menu-layer').style.display = 'flex';
+            document.getElementById('loading-menu').style.display = 'none';
+            document.getElementById('join-menu').style.display = 'none';
+            document.getElementById('game-over-menu').style.display = 'block';
+            
+            const title = document.getElementById('game-over-title');
+            if(!isMultiplayer) { title.innerText = "BOM VOO!"; title.style.color = "#4caf50"; }
+            else { title.innerText = won ? "VITÓRIA!" : "DERROTA"; title.style.color = won ? "#4caf50" : "#f44336"; }
+            
+            document.getElementById('final-score').innerText = score;
+            if(unsubscribeMatch) { unsubscribeMatch(); unsubscribeMatch = null; }
+            matchId = null;
+        }
+
+        window.backToMenu = function() {
+            document.getElementById('game-over-menu').style.display = 'none';
+            document.getElementById('start-menu').style.display = 'block';
+        };
+
+        function updateUI() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('nectar-bar-fill').style.width = Math.min(100, score) + '%';
+            document.getElementById('health-bar-fill').style.width = health + '%';
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Conversão de 3D pos para Ecrã para a Tag do Nome do Oponente
+        function updateOpponentTag() {
+            if(!isMultiplayer || !opponentBeeGroup || !opponentBeeGroup.visible) return;
+            const vector = opponentBeeGroup.position.clone();
+            vector.y += 1.5; // Acima da cabeça
+            vector.project(camera);
+            
+            if(vector.z > 1) { // Atrás da câmara
+                document.getElementById('opponent-tag').style.display = 'none';
+                return;
+            }
+            
+            const x = (vector.x * .5 + .5) * window.innerWidth;
+            const y = (-(vector.y * .5) + .5) * window.innerHeight;
+            
+            const tag = document.getElementById('opponent-tag');
+            tag.style.display = 'block';
+            tag.style.left = `${x}px`;
+            tag.style.top = `${y}px`;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now() * 0.001;
+            
+            if (gameActive) {
+                // Movimento da Abelha
+                let moveX = joyVector.x;
+                let moveZ = joyVector.y;
+
+                // Teclado fallback
+                if(keys.w) moveZ = -1; if(keys.s) moveZ = 1;
+                if(keys.a) moveX = -1; if(keys.d) moveX = 1;
+
+                if (moveX !== 0 || moveZ !== 0) {
+                    const speed = isDashing ? 0.6 : 0.3;
+                    beeGroup.position.x += moveX * speed;
+                    beeGroup.position.z += moveZ * speed;
+                    
+                    // Rotação suave em direção ao movimento (corrigida a inversão)
+                    const targetAngle = Math.atan2(moveX, moveZ) + Math.PI;
+                    
+                    // Lógica para rodar pelo caminho mais curto
+                    let diff = targetAngle - beeGroup.rotation.y;
+                    while(diff < -Math.PI) diff += Math.PI * 2;
+                    while(diff > Math.PI) diff -= Math.PI * 2;
+                    beeGroup.rotation.y += diff * 0.15;
+                }
+
+                // Limites da Arena
+                beeGroup.position.x = Math.max(-95, Math.min(95, beeGroup.position.x));
+                beeGroup.position.z = Math.max(-95, Math.min(95, beeGroup.position.z));
+
+                // Bobbing vertical
+                beeGroup.position.y = 2 + Math.sin(time * 5) * 0.1;
+
+                // Animar asas local
+                wingsLocal[0].rotation.z = Math.sin(time * 50) * 0.6 + 0.6;
+                wingsLocal[1].rotation.z = -(Math.sin(time * 50) * 0.6 + 0.6);
+
+                // Colisões com flores
+                for (let i = flowers.length - 1; i >= 0; i--) {
+                    const f = flowers[i];
+                    if (f.userData.active && beeGroup.position.distanceTo(f.position) < 2) {
+                        f.userData.active = false;
+                        scene.remove(f);
+                        flowers.splice(i, 1);
+                        score += 5;
+                        updateUI();
+
+                        if (score >= 100) {
+                            if(isMultiplayer) declareWinner(currentUser.uid);
+                            else endGame(true);
+                        }
+                    }
+                }
+
+                // Câmara: Segue a abelha suavemente (Perspetiva da Imagem)
+                const camOffsetX = 0;
+                const camOffsetY = 6;
+                const camOffsetZ = 12;
+                
+                // Segue a posição global, mas não roda com a abelha para não desorientar o joystick
+                camera.position.x += (beeGroup.position.x - camera.position.x) * 0.1;
+                camera.position.y += (beeGroup.position.y + camOffsetY - camera.position.y) * 0.1;
+                camera.position.z += (beeGroup.position.z + camOffsetZ - camera.position.z) * 0.1;
+                
+                const lookAtPos = beeGroup.position.clone();
+                lookAtPos.y += 1; // Olhar ligeiramente acima do centro da abelha
+                camera.lookAt(lookAtPos);
+
+                // Multiplayer Sync e Oponente
+                if (isMultiplayer) {
+                    if (time - lastSyncTime > 0.08) {
+                        syncData(); lastSyncTime = time;
+                    }
+                    if (opponentBeeGroup && opponentBeeGroup.visible) {
+                        opponentBeeGroup.position.lerp(targetOpponentPos, 0.2);
+                        // Rotação suave para oponente
+                        let diffOp = targetOpponentRot - opponentBeeGroup.rotation.y;
+                        while(diffOp < -Math.PI) diffOp += Math.PI * 2;
+                        while(diffOp > Math.PI) diffOp -= Math.PI * 2;
+                        opponentBeeGroup.rotation.y += diffOp * 0.2;
+                        
+                        opponentBeeGroup.position.y = 2 + Math.sin(time * 5 + 1) * 0.1;
+                        wingsOp[0].rotation.z = Math.sin(time * 50) * 0.6 + 0.6;
+                        wingsOp[1].rotation.z = -(Math.sin(time * 50) * 0.6 + 0.6);
+                        
+                        updateOpponentTag();
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
